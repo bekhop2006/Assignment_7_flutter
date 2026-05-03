@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../models/task.dart';
 import '../services/task_service.dart';
+import '../state/app_state.dart';
+import '../widgets/task_tile.dart';
 
 class TaskManagerScreen extends StatefulWidget {
-  const TaskManagerScreen({super.key});
+  const TaskManagerScreen({super.key, required this.state});
+
+  final AppState state;
 
   @override
   State<TaskManagerScreen> createState() => _TaskManagerScreenState();
@@ -12,12 +15,6 @@ class TaskManagerScreen extends StatefulWidget {
 
 class _TaskManagerScreenState extends State<TaskManagerScreen> {
   final TextEditingController _controller = TextEditingController();
-  final List<Task> _tasks = [
-    Task(title: 'Read testing chapter'),
-    Task(title: 'Write widget test', isCompleted: true),
-  ];
-
-  TaskFilter _filter = TaskFilter.all;
   String? _errorText;
 
   @override
@@ -27,47 +24,19 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
   }
 
   void _addTask() {
-    final title = _controller.text;
-
-    if (!TaskService.isValidTitle(title)) {
-      setState(() {
-        _errorText = 'Enter at least 3 characters';
-      });
-      return;
-    }
-
-    final updatedTasks = TaskService.addTask(_tasks, title);
-
+    final error = widget.state.addTask(_controller.text);
     setState(() {
-      _tasks
-        ..clear()
-        ..addAll(updatedTasks);
+      _errorText = error;
+    });
+    if (error == null) {
       _controller.clear();
-      _errorText = null;
-      _filter = TaskFilter.all;
-    });
-  }
-
-  void _toggleTask(int index) {
-    final updatedTasks = TaskService.toggleTask(_tasks, index);
-
-    setState(() {
-      _tasks
-        ..clear()
-        ..addAll(updatedTasks);
-    });
-  }
-
-  void _setFilter(TaskFilter filter) {
-    setState(() {
-      _filter = filter;
-    });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final visibleTasks = TaskService.filterTasks(_tasks, _filter);
-    final completedCount = TaskService.completedCount(_tasks);
+    final state = widget.state;
+    final visibleTasks = state.visibleTasks;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Task Testing App')),
@@ -83,7 +52,7 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Completed: $completedCount of ${_tasks.length}',
+                      'Completed: ${state.completedCount} of ${state.totalCount}',
                       key: const Key('summaryText'),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
@@ -120,8 +89,9 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                   label: Text('Completed'),
                 ),
               ],
-              selected: {_filter},
-              onSelectionChanged: (selection) => _setFilter(selection.first),
+              selected: {state.filter},
+              onSelectionChanged: (selection) =>
+                  state.setFilter(selection.first),
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -129,16 +99,12 @@ class _TaskManagerScreenState extends State<TaskManagerScreen> {
                 itemCount: visibleTasks.length,
                 itemBuilder: (context, index) {
                   final task = visibleTasks[index];
-                  final originalIndex = _tasks.indexOf(task);
+                  final originalIndex = state.tasks.indexOf(task);
 
-                  return Card(
-                    child: CheckboxListTile(
-                      key: Key('taskTile$originalIndex'),
-                      value: task.isCompleted,
-                      onChanged: (_) => _toggleTask(originalIndex),
-                      title: Text(task.title),
-                      subtitle: Text(task.isCompleted ? 'Done' : 'Active'),
-                    ),
+                  return TaskTile(
+                    key: Key('taskTile$originalIndex'),
+                    task: task,
+                    onChanged: () => state.toggleTask(originalIndex),
                   );
                 },
               ),

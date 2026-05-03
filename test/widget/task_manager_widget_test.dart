@@ -51,8 +51,8 @@ void main() {
 
     expect(find.text('Completed: 1 of 2'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('taskTile0')));
-    await tester.pump();
+    await tester.tap(find.byType(CheckboxListTile).first);
+    await tester.pumpAndSettle();
 
     expect(find.text('Completed: 2 of 2'), findsOneWidget);
   });
